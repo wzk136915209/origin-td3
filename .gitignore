@@ -213,7 +213,7 @@ dmypy.json
 cython_debug/
 
 data/
-model/
+
 *.iml
 
 .idea/.gitignore
