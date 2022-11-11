@@ -3,6 +3,7 @@
         #     tf.config.experimental.set_memory_growth(device=gpu, enable=True)
         
         
+        origin td3 no clip grad norm in huosuo
         ho origin td3 in wzk test111
       
 
