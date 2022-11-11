@@ -82,9 +82,18 @@ def main():
     # torch.set_num_threads(2)
     # torch.set_default_dtype(torch.float32)
 
+    human_reward = 2500
+
 
     if opt.write:
-        logdir = './data/' + EnvName[EnvIdex] + '/human-q-15'
+        # in server root path
+        rootpaht = "/mnt/HDD8T2/wzkfile/new/origin-td3"
+        logdir = rootpaht + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
+                 '/human-q-15/' + str(human_reward)  + "/no-clip-norm"
+
+        #in windows path
+        # logdir = './data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + '/origin/no-clip-grad'
+        # writer = SummaryWriter(log_dir=logdir)
         writer = SummaryWriter(log_dir=logdir)
 
     if not os.path.exists('model'):
@@ -122,6 +131,7 @@ def main():
     h_s = eval_env.reset()
     h_a = human.select_action(h_s)
     human_no_action = 0
+    human.human_reward = human_reward
 
     train_flag = True
     for i in range(10):
@@ -136,8 +146,8 @@ def main():
         all_episode_reward = []
         all_episode_reward.append(0)
         episode = 0
-        save_flag1 = True
-        save_flag2 = True
+        save_flag1 = False
+        save_flag2 = False
 
         while episode < 3500:
             s, done, steps, r = env.reset(), False, 0, 0
