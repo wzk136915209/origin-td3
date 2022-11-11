@@ -84,7 +84,7 @@ def main():
 
 
     if opt.write:
-        logdir = './data/' + EnvName[EnvIdex] + '/no-clip-grad'
+        logdir = './data/' + EnvName[EnvIdex] + '/origin/no-clip-grad'
         writer = SummaryWriter(log_dir=logdir)
 
     if not os.path.exists('model'):
