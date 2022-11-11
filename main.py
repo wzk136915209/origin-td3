@@ -84,7 +84,7 @@ def main():
 
 
     if opt.write:
-        logdir = './data/' + EnvName[EnvIdex] + '/no-clip-grad'
+        logdir = './data/' + EnvName[EnvIdex] + '/origin/no-clip-grad'
         writer = SummaryWriter(log_dir=logdir)
 
     if not os.path.exists('model'):
@@ -136,8 +136,8 @@ def main():
         all_episode_reward = []
         all_episode_reward.append(0)
         episode = 0
-        save_flag1 = True
-        save_flag2 = True
+        save_flag1 = False
+        save_flag2 = False
 
         while episode < 3500:
             s, done, steps, r = env.reset(), False, 0, 0
