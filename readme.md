@@ -3,7 +3,7 @@
         #     tf.config.experimental.set_memory_growth(device=gpu, enable=True)
         
         
-        ho
+        origin td3 no clip grad norm in huosuo
       
 
    tensorboard --logdir=random --load_fast=true  --samples_per_plugin scalars=4000
