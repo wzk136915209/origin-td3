@@ -118,7 +118,7 @@ def main():
     # human in the loop
     human_replay_buffer = ReplayBuffer(state_dim, action_dim, max_size=int(4e5))
     human = TD3_Agent(**kwargs)
-    # human.load(BrifEnvName[EnvIdex],'reward=4000')
+    human.load(BrifEnvName[EnvIdex],'reward=4000')
     h_s = eval_env.reset()
     h_a = human.select_action(h_s)
     human_no_action = 0
