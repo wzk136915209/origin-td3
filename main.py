@@ -84,7 +84,7 @@ def main():
 
 
     if opt.write:
-        logdir = './data/' + EnvName[EnvIdex] + '/origin'
+        logdir = './data/' + EnvName[EnvIdex] + '/human-q-15'
         writer = SummaryWriter(log_dir=logdir)
 
     if not os.path.exists('model'):
@@ -165,16 +165,16 @@ def main():
                     maxqvalue = model.que.max_value()
                     model.que.push_back(q_diff)
                     human.human_flag = 0
-                    # if q_diff > maxqvalue and all_episode_reward[-1] < human.human_reward:
-                    #     h_a = human.select_action(s)
-                    #     if np.mean(abs(h_a - a)) > 0.2:
-                    #         #a = h_a
-                    #         human.human_flag = 1
-                    #     else:
-                    #         human_no_action += 1
-                    #         human.human_flag = 0
-                    #         h_a = a
-                    #         writer.add_scalar('human-no-action', human_no_action, total_steps)
+                    if q_diff > maxqvalue and all_episode_reward[-1] < human.human_reward:
+                        h_a = human.select_action(s)
+                        if np.mean(abs(h_a - a)) > 0.2:
+                            #a = h_a
+                            human.human_flag = 1
+                        else:
+                            human_no_action += 1
+                            human.human_flag = 0
+                            h_a = a
+                            writer.add_scalar('human-no-action', human_no_action, total_steps)
 
 
                     h_a = h_a.clip(-max_action,max_action)
@@ -218,7 +218,7 @@ def main():
                 #     for j in range(opt.update_every):
                 if total_steps >= update_after:
 
-                    # model.train(replay_buffer, human_replay_buffer, 1, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
+                    model.train(replay_buffer, human_replay_buffer, 1, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
                     model.train(replay_buffer, human_replay_buffer, 0, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
 
 
