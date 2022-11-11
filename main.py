@@ -84,7 +84,8 @@ def main():
 
 
     if opt.write:
-        logdir = './data/' + EnvName[EnvIdex] + '/origin/no-clip-grad'
+        rootpaht = "/mnt/HDD8T2/wzkfile/new/origin-td3"
+        logdir = rootpaht + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + '/origin/no-clip-grad'
         writer = SummaryWriter(log_dir=logdir)
 
     if not os.path.exists('model'):
