@@ -14,6 +14,8 @@ import mujoco_py
 import random
 from maxque import MaxQueue
 import platform
+import json
+from utils import *
 
 
 
@@ -22,7 +24,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--EnvIdex', type=int, default=6, help='PV0, Lch_Cv2, Humanv2, HCv2, BWv3, BWHv3')
 parser.add_argument('--write', type=str2bool, default=True, help='Use SummaryWriter to record the training')
 parser.add_argument('--render', type=str2bool, default=False, help='Render or Not')
-parser.add_argument('--Loadmodel', type=str2bool, default=False, help='Load pretrained model or Not')
+parser.add_argument('--Loadmodel', type=str2bool, default=True, help='Load pretrained model or Not')
 parser.add_argument('--ModelIdex', type=int, default=30000, help='which model to load')
 
 parser.add_argument('--seed', type=int, default=0, help='random seed')
@@ -122,14 +124,15 @@ def main():
     print("-"*80, 'critic model')
     print(model.q_critic)
     if opt.Loadmodel:
-        model.load(BrifEnvName[EnvIdex], opt.ModelIdex)
+        model.load(BrifEnvName[EnvIdex], 'reward=4000')
+        print("load pretrain model to model")
 
     replay_buffer = ReplayBuffer(state_dim, action_dim, max_size=int(1e6))
 
     # human in the loop
     human_replay_buffer = ReplayBuffer(state_dim, action_dim, max_size=int(4e5))
     human = TD3_Agent(**kwargs)
-    human.load(BrifEnvName[EnvIdex],'reward=4000')
+    # human.load(BrifEnvName[EnvIdex], 'reward=4000')
     h_s = eval_env.reset()
     h_a = human.select_action(h_s)
     human_no_action = 0
@@ -151,6 +154,26 @@ def main():
         save_flag1 = False
         save_flag2 = False
 
+        save_data = {
+            's':[],
+            'a':[],
+            'r':[],
+            'sn':[],
+            'done':[]
+        }
+        save_state = []
+        save_action = []
+        save_r = []
+        save_nextstate = []
+        save_done = []
+
+
+        max_num_data = 1e4
+        save_data_filename = "./save_data/export.json"
+        save_file = open(save_data_filename, 'w')
+        save_data_flag = True
+
+
         while episode < 3500:
             s, done, steps, r = env.reset(), False, 0, 0
             ep_r = 0
@@ -170,24 +193,23 @@ def main():
                     # a = (model.select_action(s) + np.random.normal(0, max_action * expl_noise, size=action_dim)
                     #      ).clip(-max_action, max_action)  # explore: deterministic actions + noise
                     model.std = expl_noise
-                    a = model.slect_action_normal(s)
+                    a = model.select_action(s)
 
                     # human in the loop q diff
                     q_diff = model.computer_q_diff(s, a)
                     maxqvalue = model.que.max_value()
                     model.que.push_back(q_diff)
                     human.human_flag = 0
-                    if q_diff > maxqvalue and all_episode_reward[-1] < human.human_reward:
-                        h_a = human.select_action(s)
-                        if np.mean(abs(h_a - a)) > 0.2:
-                            #a = h_a
-                            human.human_flag = 1
-                        else:
-                            human_no_action += 1
-                            human.human_flag = 0
-                            h_a = a
-                            writer.add_scalar('human-no-action', human_no_action, total_steps)
-
+                    # if q_diff > maxqvalue and all_episode_reward[-1] < human.human_reward:
+                    #     h_a = human.select_action(s)
+                    #     if np.mean(abs(h_a - a)) > 0.2:
+                    #         #a = h_a
+                    #         human.human_flag = 1
+                    #     else:
+                    #         human_no_action += 1
+                    #         human.human_flag = 0
+                    #         h_a = a
+                    #         writer.add_scalar('human-no-action', human_no_action, total_steps)
 
                     h_a = h_a.clip(-max_action,max_action)
                     a = a.clip(-max_action, max_action)
@@ -198,6 +220,7 @@ def main():
                         action = a
 
                 s_prime, r, done, info = env.step(action)
+                env.render()
                 r = Reward_adapter(r, EnvIdex)
                 # writer.add_scalar('origin reward', r, total_steps)
 
@@ -212,6 +235,13 @@ def main():
                     replay_buffer.add(s, h_a, r, s_prime, dw)
                 else:
                     replay_buffer.add(s, a, r, s_prime, dw)
+
+                save_state.append(list(np.float64(s)))
+                save_action.append(list(np.float64(a)))
+                save_r.append(list([np.float64(r)]))
+                save_nextstate.append(list(np.float64(s_prime)))
+                save_done.append(list([np.float64(dw)]))
+
                 s = s_prime
                 ep_r += r
 
@@ -229,8 +259,9 @@ def main():
                 # if total_steps >= update_after and total_steps % opt.update_every == 0:
                 #     for j in range(opt.update_every):
                 if total_steps >= update_after:
-                    model.train(replay_buffer, human_replay_buffer, 1, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
-                    model.train(replay_buffer, human_replay_buffer, 0, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
+                    pass
+                    # model.train(replay_buffer, human_replay_buffer, 1, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
+                    # model.train(replay_buffer, human_replay_buffer, 0, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
 
 
                 '''record & log'''
@@ -242,7 +273,35 @@ def main():
                         writer.add_scalar('reward eval', score, global_step=total_steps)
 
                     print('EnvName:', BrifEnvName[EnvIdex], 'steps: {}k'.format(int(total_steps/1000)), 'score:', score)
+
+                '''save export data'''
                 total_steps += 1
+                if done and save_data_flag or total_steps >= max_num_data:
+                    if dw:
+                        input_val = bool(input("need to save:"))
+                    else:
+                        input_val = True
+
+                    if input_val:
+                        for i in range(len(save_done)):
+                            save_data['s'].append(save_state[i])
+                            save_data['a'].append(save_action[i])
+                            save_data['r'].append(save_r[i])
+                            save_data['sn'].append(save_nextstate[i])
+                            save_data['done'].append(save_done[i])
+                    save_state = []
+                    save_action = []
+                    save_r = []
+                    save_nextstate = []
+                    save_done = []
+
+                if total_steps >= max_num_data:
+                    data = json.dumps(save_data)
+                    save_file.write(data)
+                    save_file.close()
+                    episode = 100000
+                    break
+
 
                 '''save model'''
                 # if total_steps % opt.save_interval == 0:
@@ -254,6 +313,9 @@ def main():
                 if episode>700 and save_flag2 and np.mean(all_episode_reward[-5:]) > 2500 and ep_r > 2500:
                     model.save(BrifEnvName[EnvIdex], 'reward=2500')
                     save_flag2 = False
+
+
+
 
         env.close()
         eval_env.close()
