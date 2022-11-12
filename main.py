@@ -229,7 +229,6 @@ def main():
                 # if total_steps >= update_after and total_steps % opt.update_every == 0:
                 #     for j in range(opt.update_every):
                 if total_steps >= update_after:
-
                     model.train(replay_buffer, human_replay_buffer, 1, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
                     model.train(replay_buffer, human_replay_buffer, 0, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
 
