@@ -13,6 +13,7 @@ import mujoco_py
 # import tensorflow as tf
 import random
 from maxque import MaxQueue
+import platform
 
 
 
@@ -86,14 +87,15 @@ def main():
 
 
     if opt.write:
-        # in server root path
-        rootpaht = "/mnt/HDD8T2/wzkfile/new/origin-td3"
-        logdir = rootpaht + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
-                 '/human-q-15/' + str(human_reward)  + "/no-clip-norm"
-
-        #in windows path
-        # logdir = './data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + '/origin/no-clip-grad'
-        # writer = SummaryWriter(log_dir=logdir)
+        # save path
+        if platform.system().lower() == 'windows':
+            logdir = './data/' + EnvName[EnvIdex] + "/random" + str(random_seed) +\
+                     '/human-q-15/' + str(human_reward) + "/no-clip-norm"
+        elif platform.system().lower() == 'linux':
+            rootpaht = "/mnt/HDD8T2/wzkfile/new/origin-td3"
+            logdir = rootpaht + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
+                     '/human-q-15/' + str(human_reward)  + "/no-clip-norm"
+        print(logdir)
         writer = SummaryWriter(log_dir=logdir)
 
     if not os.path.exists('model'):
