@@ -84,7 +84,7 @@ def main():
     # torch.set_default_dtype(torch.float32)
 
     human_reward = 2500
-    random_max_val = 0.1
+    random_max_val = 0.2
 
     if opt.write:
         # save path
