@@ -94,7 +94,7 @@ def main():
         elif platform.system().lower() == 'linux':
             rootpaht = "/mnt/HDD8T2/wzkfile/new/origin-td3"
             logdir = rootpaht + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
-                     '/human-q-15/' + str(human_reward)  + "/no-clip-norm"
+                     '/human-q-15/' + str(human_reward)  + "/clip-norm-15"
         print(logdir)
         writer = SummaryWriter(log_dir=logdir)
 

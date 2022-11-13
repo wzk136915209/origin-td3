@@ -188,13 +188,14 @@ class TD3_Agent(object):
             # Get current Q estimates
             current_Q1, current_Q2 = self.q_critic(s, a)
             q_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+
             self.writer.add_scalar('loss q', q_loss, self.count)
 
         # Optimize the q_critic
         self.q_critic_optimizer.zero_grad()
         q_loss.backward()
-        # total_norm_q = torch.nn.utils.clip_grad_norm_(self.q_critic.parameters(), self.max_norm)
-        # self.writer.add_scalar('grad norm Q', total_norm_q, self.count)
+        total_norm_q = torch.nn.utils.clip_grad_norm_(self.q_critic.parameters(), self.max_norm)
+        self.writer.add_scalar('grad norm Q', total_norm_q, self.count)
         self.q_critic_optimizer.step()
 
 
@@ -205,8 +206,8 @@ class TD3_Agent(object):
 
             self.actor_optimizer.zero_grad()
             a_loss.backward()
-            # total_norm_actor = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_norm)
-            # self.writer.add_scalar('grad norm actor', total_norm_actor, self.count)
+            total_norm_actor = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_norm)
+            self.writer.add_scalar('grad norm actor', total_norm_actor, self.count)
             self.actor_optimizer.step()
 
             # Update the frozen target models
