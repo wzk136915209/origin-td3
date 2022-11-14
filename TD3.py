@@ -142,8 +142,7 @@ class TD3_Agent(object):
 
             #sample from normal distrbution
             dist = Normal(a, self.std)
-            # action = dist.rsample()
-            action = dist.sample()
+            action = dist.rsample()
             action = action.cpu().numpy()[0]
         return action
 
@@ -163,7 +162,7 @@ class TD3_Agent(object):
             ).clamp(-self.max_action, self.max_action)
 
         if human_flag and human_replay_buffer_size > self.batch_size:
-            action_agent = self.actor(s)
+            action_agent = self.actor(s).detach()
 
             #this a is human a, because it save in human buffer
             human_Q1, human_Q2 = self.q_critic(s, a)

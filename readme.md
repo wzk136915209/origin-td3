@@ -7,5 +7,5 @@
         huoshuo human q diff test 111222
               huoshuo human q diff test 111222
 
-
+    考虑 detach
    tensorboard --logdir=random --load_fast=true  --samples_per_plugin scalars=4000
