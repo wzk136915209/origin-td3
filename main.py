@@ -167,8 +167,8 @@ def main():
         save_done = []
 
 
-        max_num_data = 1e4
-        save_data_filename = "./save_data/export.json"
+        max_num_data = 8e4
+        save_data_filename = "./save_data/export-walker.json"
         save_file = open(save_data_filename, 'w')
         save_data_flag = True
 
