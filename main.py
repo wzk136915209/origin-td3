@@ -19,7 +19,7 @@ import platform
 
 '''Hyperparameter Setting'''
 parser = argparse.ArgumentParser()
-parser.add_argument('--EnvIdex', type=int, default=6, help='PV0, Lch_Cv2, Humanv2, HCv2, BWv3, BWHv3')
+parser.add_argument('--EnvIdex', type=int, default=0, help='PV0, Lch_Cv2, Humanv2, HCv2, BWv3, BWHv3')
 parser.add_argument('--write', type=str2bool, default=True, help='Use SummaryWriter to record the training')
 parser.add_argument('--render', type=str2bool, default=False, help='Render or Not')
 parser.add_argument('--Loadmodel', type=str2bool, default=False, help='Load pretrained model or Not')
@@ -144,10 +144,10 @@ def main():
         all_episode_reward = []
         all_episode_reward.append(0)
         episode = 0
-        save_flag1 = False
-        save_flag2 = False
+        save_flag1 = True
+        save_flag2 = True
 
-        while episode < 3500:
+        while episode < 500:
             s, done, steps, r = env.reset(), False, 0, 0
             ep_r = 0
             mem = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024
@@ -245,11 +245,11 @@ def main():
                 # if total_steps % opt.save_interval == 0:
                 #     model.save(BrifEnvName[EnvIdex],total_steps)
 
-                if episode>700 and save_flag1 and np.mean(all_episode_reward[-5:]) > 4000 and ep_r > 4000:
-                    model.save(BrifEnvName[EnvIdex], 'reward=4000')
+                if episode>80 and save_flag1 and np.mean(all_episode_reward[-5:]) > -200 and ep_r > -200:
+                    model.save(BrifEnvName[EnvIdex], 'reward=200')
                     save_flag1 = False
-                if episode>700 and save_flag2 and np.mean(all_episode_reward[-5:]) > 2500 and ep_r > 2500:
-                    model.save(BrifEnvName[EnvIdex], 'reward=2500')
+                if episode>40 and save_flag2 and np.mean(all_episode_reward[-5:]) > -150  and ep_r > -150:
+                    model.save(BrifEnvName[EnvIdex], 'reward=150')
                     save_flag2 = False
 
         env.close()
