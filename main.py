@@ -84,17 +84,17 @@ def main():
     # torch.set_default_dtype(torch.float32)
 
     human_reward = 2500
+    bc_smaple_num = 30
 
 
     if opt.write:
         # save path
         if platform.system().lower() == 'windows':
-            logdir = './data/' + EnvName[EnvIdex] + "/random" + str(random_seed) +\
-                     '/human-q-15/' + str(human_reward) + "/no-clip-norm-action-sample-detach"
+            rootpath = "."
         elif platform.system().lower() == 'linux':
-            rootpaht = "/mnt/HDD8T2/wzkfile/new/origin-td3"
-            logdir = rootpaht + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
-                     '/human-q-15/' + str(human_reward)  + "/no-clip-norm-action-sample-detach"
+            rootpath = "/mnt/HDD8T2/wzkfile/new/origin-td3"
+        logdir = rootpath + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
+                 '/bc/'+str(bc_smaple_num) + '/origin'
         print(logdir)
         writer = SummaryWriter(log_dir=logdir)
 
@@ -123,6 +123,7 @@ def main():
     print(model.q_critic)
     if opt.Loadmodel:
         model.load(BrifEnvName[EnvIdex], opt.ModelIdex)
+    print('Loadmodel: ', opt.Loadmodel)
 
     replay_buffer = ReplayBuffer(state_dim, action_dim, max_size=int(1e6))
 
