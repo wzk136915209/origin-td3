@@ -19,7 +19,7 @@ import platform
 
 '''Hyperparameter Setting'''
 parser = argparse.ArgumentParser()
-parser.add_argument('--EnvIdex', type=int, default=0, help='PV0, Lch_Cv2, Humanv2, HCv2, BWv3, BWHv3')
+parser.add_argument('--EnvIdex', type=int, default=1, help='PV0, Lch_Cv2, Humanv2, HCv2, BWv3, BWHv3')
 parser.add_argument('--write', type=str2bool, default=True, help='Use SummaryWriter to record the training')
 parser.add_argument('--render', type=str2bool, default=False, help='Render or Not')
 parser.add_argument('--Loadmodel', type=str2bool, default=False, help='Load pretrained model or Not')
@@ -146,13 +146,13 @@ def main():
         episode = 0
         save_flag1 = True
         save_flag2 = True
-        save_1_reward = 180
-        save_1_episode = 80
+        save_1_reward = 200
+        save_1_episode = 450
         save_2_reward = 150
-        save_2_episode = 30
+        save_2_episode = 350
 
 
-        while episode < 500:
+        while episode < 800:
             s, done, steps, r = env.reset(), False, 0, 0
             ep_r = 0
             mem = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024
