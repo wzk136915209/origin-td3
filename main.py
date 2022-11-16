@@ -84,7 +84,7 @@ def main():
     # torch.set_default_dtype(torch.float32)
 
     human_reward = 2500
-    bc_smaple_num = 10000
+    bc_smaple_num = 80000
 
 
     if opt.write:
@@ -152,7 +152,7 @@ def main():
         save_flag1 = False
         save_flag2 = False
 
-        filename = './save_data/export.json'
+        filename = './save_data/export-walker.json'
         load_json_data(filename, replay_buffer)
         writer.add_scalar('buffer agent', replay_buffer.size, episode)
         while episode < 3500:
