@@ -146,6 +146,11 @@ def main():
         episode = 0
         save_flag1 = True
         save_flag2 = True
+        save_1_reward = 180
+        save_1_episode = 80
+        save_2_reward = 150
+        save_2_episode = 30
+
 
         while episode < 500:
             s, done, steps, r = env.reset(), False, 0, 0
@@ -245,11 +250,11 @@ def main():
                 # if total_steps % opt.save_interval == 0:
                 #     model.save(BrifEnvName[EnvIdex],total_steps)
 
-                if episode>80 and save_flag1 and np.mean(all_episode_reward[-5:]) > -200 and ep_r > -200:
-                    model.save(BrifEnvName[EnvIdex], 'reward=200')
+                if episode>save_1_episode and save_flag1 and np.mean(all_episode_reward[-5:]) > save_1_reward and ep_r > save_1_reward:
+                    model.save(BrifEnvName[EnvIdex], 'reward='+str(save_1_reward))
                     save_flag1 = False
-                if episode>40 and save_flag2 and np.mean(all_episode_reward[-5:]) > -150  and ep_r > -150:
-                    model.save(BrifEnvName[EnvIdex], 'reward=150')
+                if episode>save_2_episode and save_flag2 and np.mean(all_episode_reward[-5:]) > save_2_reward  and ep_r > save_2_reward:
+                    model.save(BrifEnvName[EnvIdex], 'reward='+str(save_2_reward))
                     save_flag2 = False
 
         env.close()
