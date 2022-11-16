@@ -1,3 +1,6 @@
+import json
+import numpy as np
+
 def evaluate_policy(env, model, render, turns=3):
     scores = 0
     for j in range(turns):
@@ -49,6 +52,22 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
+def load_json_data(filename, buffer, keys=['s', 'a', 'r', 'sn', 'done']):
+    print("the json keys is: ", keys)
+    file = open(filename, 'r')
+    data = json.load(file)
+    # print(len(data[keys[0]]))
+    for i in range(len(data[keys[0]])):
+        s = np.array(data[keys[0]][i])
+        a = np.array(data[keys[1]][i])
+        r = np.array(data[keys[2]][i])
+        sn = np.array(data[keys[3]][i])
+        done = np.array(data[keys[4]][i])
+        buffer.add(s, a, r, sn, done)
+    print("load json data to buffer is ok!")
+    print("buffer size is ", buffer.size)
+    file.close()
 
 
 #reward engineering for better training
