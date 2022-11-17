@@ -6,7 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 import os, shutil
 from datetime import datetime
 import argparse
-from utils import str2bool,Reward_adapter,evaluate_policy, evaluate_policy_test
+from utils import str2bool,Reward_adapter,evaluate_policy, evaluate_policy_test, load_json_data
 import psutil
 import mujoco_py
 # import tensorflow_probability as tfb
@@ -89,12 +89,11 @@ def main():
     if opt.write:
         # save path
         if platform.system().lower() == 'windows':
-            logdir = './data/' + EnvName[EnvIdex] + "/random" + str(random_seed) +\
-                     '/human-q-15/' + str(human_reward) + "/no-clip-norm-action-sample-detach"
+            rootpath = "."
         elif platform.system().lower() == 'linux':
-            rootpaht = "/mnt/HDD8T2/wzkfile/new/origin-td3"
-            logdir = rootpaht + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
-                     '/human-q-15/' + str(human_reward)  + "/no-clip-norm-action-sample-detach"
+            rootpath = "/mnt/HDD8T2/wzkfile/new/origin-td3"
+        logdir = rootpath + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
+                 '/mygan/' + str(human_reward)  + "/no-clip-norm"
         print(logdir)
         writer = SummaryWriter(log_dir=logdir)
 
