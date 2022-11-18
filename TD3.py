@@ -15,68 +15,62 @@ print(device)
 
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim, net_width, maxaction):
-        super(Actor, self).__init__()
+	def __init__(self, state_dim, action_dim, net_width, maxaction):
+		super(Actor, self).__init__()
 
-        self.shared_a1 = nn.Sequential(
-            nn.Linear(state_dim, net_width),
-            nn.ReLU(),
-            nn.Linear(net_width, net_width),
-            nn.ReLU()
-        )
-        self.l1 = nn.Linear(net_width, action_dim)
+		self.l1 = nn.Linear(state_dim, net_width)
+		self.l2 = nn.Linear(net_width, net_width)
+		self.l3 = nn.Linear(net_width, action_dim)
 
+		self.maxaction = maxaction
 
-        self.maxaction = maxaction
+	def forward(self, state):
+		# a = torch.tanh(self.l1(state))
+		# a = torch.tanh(self.l2(a))
+		# a = torch.tanh(self.l3(a)) * self.maxaction
 
-    def forward(self, state):
+		a = torch.relu(self.l1(state))
+		a = torch.relu(self.l2(a))
+		a = torch.tanh(self.l3(a)) * self.maxaction
 
-        a = self.shared_a1(state)
-        a = torch.tanh(self.l1(a)) * self.maxaction
-
-        return a
+		return a
 
 
 class Q_Critic(nn.Module):
-    def __init__(self, state_dim, action_dim, net_width):
-        super(Q_Critic, self).__init__()
+	def __init__(self, state_dim, action_dim, net_width):
+		super(Q_Critic, self).__init__()
 
-        # Q1 architecture
+		# Q1 architecture
+		self.l1 = nn.Linear(state_dim + action_dim, net_width)  #没有先提取特征
+		self.l2 = nn.Linear(net_width, net_width)
+		self.l3 = nn.Linear(net_width, 1)
+
+		# Q2 architecture
+		self.l4 = nn.Linear(state_dim + action_dim, net_width)
+		self.l5 = nn.Linear(net_width, net_width)
+		self.l6 = nn.Linear(net_width, 1)
 
 
-        self.shared_q1 = nn.Sequential(
-            nn.Linear(state_dim + action_dim, net_width),
-            nn.ReLU(),
-            nn.Linear(net_width, net_width),
-            nn.ReLU()
-        )
-        self.l1 = nn.Linear(net_width, 1)
+	def forward(self, state, action):
+		sa = torch.cat([state, action], 1)
 
-        # Q2 architecture
-        self.shared_q2 = nn.Sequential(
-            nn.Linear(state_dim + action_dim, net_width),
-            nn.ReLU(),
-            nn.Linear(net_width, net_width),
-            nn.ReLU()
-        )
-        self.l2 = nn.Linear(net_width, 1)
+		q1 = F.relu(self.l1(sa))
+		q1 = F.relu(self.l2(q1))
+		q1 = self.l3(q1)
 
-    def forward(self, state, action):
-        sa = torch.cat([state, action], 1)
+		q2 = F.relu(self.l4(sa))
+		q2 = F.relu(self.l5(q2))
+		q2 = self.l6(q2)
+		return q1, q2
 
-        q1 = self.shared_q1(sa)
-        q1 = self.l1(q1)
 
-        q2 = self.shared_q2(sa)
-        q2 = self.l2(q2)
-        return q1, q2
+	def Q1(self, state, action):
+		sa = torch.cat([state, action], 1)
 
-    def Q1(self, state, action):
-        sa = torch.cat([state, action], 1)
-
-        q1 = self.shared_q1(sa)
-        q1 = self.l1(q1)
-        return q1
+		q1 = F.relu(self.l1(sa))
+		q1 = F.relu(self.l2(q1))
+		q1 = self.l3(q1)
+		return q1
 
 
 class TD3_Agent(object):
