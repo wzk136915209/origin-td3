@@ -61,6 +61,9 @@ class Q_Critic(nn.Module):
         )
         self.l2 = nn.Linear(net_width, 1)
 
+        #descriminator
+        self.d1 = nn.Linear(net_width, 1)
+
     def forward(self, state, action):
         sa = torch.cat([state, action], 1)
 
@@ -77,6 +80,13 @@ class Q_Critic(nn.Module):
         q1 = self.shared_q1(sa)
         q1 = self.l1(q1)
         return q1
+
+    def discriminator(self, s, a):
+        sa = torch.cat([s, a], dim=1)
+        sh1 = self.shared_q1(sa)
+        out = F.relu(self.d1(sh1))
+        out = F.sigmoid(out)
+        return out
 
 
 class TD3_Agent(object):
@@ -104,6 +114,9 @@ class TD3_Agent(object):
         self.q_critic_optimizer = torch.optim.Adam(self.q_critic.parameters(), lr=c_lr)
         self.q_critic_target = copy.deepcopy(self.q_critic)
 
+        self.disciminator_criteon = nn.BCELoss()
+
+
         self.env_with_dw = env_with_dw
         self.action_dim = action_dim
         self.max_action = max_action
@@ -126,6 +139,8 @@ class TD3_Agent(object):
         self.que = MaxQueue(15)
         self.max_norm = 15
 
+        self.actor_count = 0
+
     def prob_gass(self, mean, std, x):
         return np.array(np.exp(-np.power((x - mean), 2) / (2.0 * std ** 2)) / (std * np.sqrt(2 * np.pi)))
 
@@ -146,76 +161,98 @@ class TD3_Agent(object):
             action = action.cpu().numpy()[0]
         return action
 
-    def train(self, replay_buffer, human_replay_buffer, human_flag, episode_reward_1, human_replay_buffer_size,
-              human_reward):
+    def train(self, replay_buffer, human_replay_buffer, flag):
         self.delay_counter += 1
         self.count += 1
         with torch.no_grad():
-            if human_flag and human_replay_buffer_size > self.batch_size:
-                s, a, r, s_prime, dw_mask = human_replay_buffer.sample(self.batch_size)
-            else:
-                s, a, r, s_prime, dw_mask = replay_buffer.sample(self.batch_size)
 
-            noise = (torch.randn_like(a) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
+            export_s, export_a, export_r, export_s_prime, export_dw_mask = human_replay_buffer.sample(self.batch_size)
+            agent_s, agent_a, agent_r, agent_s_prime, agent_dw_mask = replay_buffer.sample(self.batch_size)
+
+            noise = (torch.randn_like(agent_a) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
             smoothed_target_a = (
-                    self.actor_target(s_prime) + noise  # Noisy on target action
+                    self.actor_target(agent_s_prime) + noise  # Noisy on target action
             ).clamp(-self.max_action, self.max_action)
 
-        if human_flag and human_replay_buffer_size > self.batch_size:
-            action_agent = self.actor(s).detach()
+        # disciminator
+        if flag==1:
+            agent_action = self.actor(export_s)
+            agent_prob = self.q_critic.discriminator(export_s, agent_action)
+            export_prob = self.q_critic.discriminator(export_s, export_a)
+            dis_loss = self.disciminator_criteon(agent_prob, torch.zeros_like(agent_prob))\
+                      +self.disciminator_criteon(export_prob, torch.ones_like(export_prob))
 
-            #this a is human a, because it save in human buffer
-            human_Q1, human_Q2 = self.q_critic(s, a)
+            # Optimize the q_critic
+            self.q_critic_optimizer.zero_grad()
+            dis_loss.backward()
+            # total_norm_q = torch.nn.utils.clip_grad_norm_(self.q_critic.parameters(), self.max_norm)
+            # self.writer.add_scalar('grad norm Q', total_norm_q, self.count)
+            self.q_critic_optimizer.step()
 
+            self.writer.add_scalar('loss discriminator', dis_loss, self.count)
+
+        # Q
+        elif flag==2:
             # Compute the target Q value
-            target_Q1, target_Q2 = self.q_critic(s, action_agent)
-            q_loss = -torch.mean(1.0 * (human_Q1 - target_Q1) + 1.0 * (human_Q2 - target_Q2))
-            q_loss = torch.clip(q_loss, -5, 5)
-            self.writer.add_scalar('loss human', q_loss, self.count)
-            self.writer.add_scalar('human-agent', torch.mean((human_Q1 - target_Q1)), self.count)
-
-        else:
-            # Compute the target Q value
-            target_Q1, target_Q2 = self.q_critic_target(s_prime, smoothed_target_a)
+            target_Q1, target_Q2 = self.q_critic_target(agent_s_prime, smoothed_target_a)
             target_Q = torch.min(target_Q1, target_Q2)
 
             '''Avoid impacts caused by reaching max episode steps'''
             if self.env_with_dw:
-                target_Q = r + (1 - dw_mask) * self.gamma * target_Q  # dw: die or win
+                target_Q = agent_r + (1 - agent_dw_mask) * self.gamma * target_Q  # dw: die or win
             else:
-                target_Q = r + self.gamma * target_Q
+                target_Q = agent_r + self.gamma * target_Q
 
             # Get current Q estimates
-            current_Q1, current_Q2 = self.q_critic(s, a)
+            current_Q1, current_Q2 = self.q_critic(agent_s, agent_a)
             q_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+
+            # Optimize the q_critic
+            self.q_critic_optimizer.zero_grad()
+            q_loss.backward()
+            # total_norm_q = torch.nn.utils.clip_grad_norm_(self.q_critic.parameters(), self.max_norm)
+            # self.writer.add_scalar('grad norm Q', total_norm_q, self.count)
+            self.q_critic_optimizer.step()
 
             self.writer.add_scalar('loss q', q_loss, self.count)
 
-        # Optimize the q_critic
-        self.q_critic_optimizer.zero_grad()
-        q_loss.backward()
-        # total_norm_q = torch.nn.utils.clip_grad_norm_(self.q_critic.parameters(), self.max_norm)
-        # self.writer.add_scalar('grad norm Q', total_norm_q, self.count)
-        self.q_critic_optimizer.step()
+        # actor
+        elif flag == 0:
+            if self.actor_count % 2 == 0:
+                self.actor_count += 1
+                # Update Actor
+                a_loss = -self.q_critic.Q1(agent_s, self.actor(agent_s)).mean()
+                self.writer.add_scalar('loss actor agent', a_loss, self.count)
 
+                self.actor_optimizer.zero_grad()
+                a_loss.backward()
+                # total_norm_actor = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_norm)
+                # self.writer.add_scalar('grad norm actor', total_norm_actor, self.count)
+                self.actor_optimizer.step()
+            else:
+                self.actor_count = 0
+                agent_action = self.actor(export_s)
+                export_prob = self.q_critic.discriminator(export_s, export_a).mean()
+                agent_prob = self.q_critic.discriminator(export_s, agent_action).mean()
+                prob = agent_prob/export_prob
+                a_loss = -prob*self.q_critic.Q1(export_s, agent_action).mean()
+                self.writer.add_scalar('loss actor export', a_loss, self.count)
+                self.writer.add_scalar('prob agent export', prob, self.count)
+                self.writer.add_scalar('prob  export', export_prob, self.count)
+                self.writer.add_scalar('prob  agent', agent_prob, self.count)
 
-        if self.delay_counter == self.delay_freq:
-            # Update Actor
-            a_loss = -self.q_critic.Q1(s, self.actor(s)).mean()
-            self.writer.add_scalar('loss actor', a_loss, self.count)
+                self.actor_optimizer.zero_grad()
+                a_loss.backward()
+                # total_norm_actor = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_norm)
+                # self.writer.add_scalar('grad norm actor', total_norm_actor, self.count)
+                self.actor_optimizer.step()
 
-            self.actor_optimizer.zero_grad()
-            a_loss.backward()
-            # total_norm_actor = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_norm)
-            # self.writer.add_scalar('grad norm actor', total_norm_actor, self.count)
-            self.actor_optimizer.step()
+                # Update the frozen target models
+                for param, target_param in zip(self.q_critic.parameters(), self.q_critic_target.parameters()):
+                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
-            # Update the frozen target models
-            for param, target_param in zip(self.q_critic.parameters(), self.q_critic_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-
-            for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
+                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
             self.delay_counter = -1
 

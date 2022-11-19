@@ -93,7 +93,8 @@ def main():
         elif platform.system().lower() == 'linux':
             rootpath = "/mnt/HDD8T2/wzkfile/new/origin-td3"
         logdir = rootpath + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
-                 '/mygan/' + str(human_reward)  + "/no-clip-norm"
+                 '/mygan' + "/gan-Q(s,a),Q(s,pi(s))2"
+
         print(logdir)
         writer = SummaryWriter(log_dir=logdir)
 
@@ -128,7 +129,7 @@ def main():
     # human in the loop
     human_replay_buffer = ReplayBuffer(state_dim, action_dim, max_size=int(4e5))
     human = TD3_Agent(**kwargs)
-    human.load(BrifEnvName[EnvIdex],'reward=4000')
+    # human.load(BrifEnvName[EnvIdex],'reward=4000')
     h_s = eval_env.reset()
     h_a = human.select_action(h_s)
     human_no_action = 0
@@ -138,6 +139,8 @@ def main():
     for i in range(10):
         model.que.push_back(0)
 
+    filename = './save_data/export-walker.json'
+    load_json_data(filename, human_replay_buffer)
 
     if train_flag == False:
         evaluate_policy_test(env, human, opt.render, writer, 3500)
@@ -166,26 +169,26 @@ def main():
                 if total_steps < start_steps:
                     a = env.action_space.sample()
                 else:
-                    # a = (model.select_action(s) + np.random.normal(0, max_action * expl_noise, size=action_dim)
-                    #      ).clip(-max_action, max_action)  # explore: deterministic actions + noise
+                    a = (model.select_action(s) + np.random.normal(0, max_action * expl_noise, size=action_dim)
+                          ).clip(-max_action, max_action)  # explore: deterministic actions + noise
                     model.std = expl_noise
-                    a = model.slect_action_normal(s)
+                    #a = model.slect_action_normal(s)
 
                     # human in the loop q diff
                     q_diff = model.computer_q_diff(s, a)
                     maxqvalue = model.que.max_value()
                     model.que.push_back(q_diff)
                     human.human_flag = 0
-                    if q_diff > maxqvalue and all_episode_reward[-1] < human.human_reward:
-                        h_a = human.select_action(s)
-                        if np.mean(abs(h_a - a)) > 0.2:
-                            #a = h_a
-                            human.human_flag = 1
-                        else:
-                            human_no_action += 1
-                            human.human_flag = 0
-                            h_a = a
-                            writer.add_scalar('human-no-action', human_no_action, total_steps)
+                    # if q_diff > maxqvalue and all_episode_reward[-1] < human.human_reward:
+                    #     h_a = human.select_action(s)
+                    #     if np.mean(abs(h_a - a)) > 0.2:
+                    #         #a = h_a
+                    #         human.human_flag = 1
+                    #     else:
+                    #         human_no_action += 1
+                    #         human.human_flag = 0
+                    #         h_a = a
+                    #         writer.add_scalar('human-no-action', human_no_action, total_steps)
 
 
                     h_a = h_a.clip(-max_action,max_action)
@@ -228,8 +231,14 @@ def main():
                 # if total_steps >= update_after and total_steps % opt.update_every == 0:
                 #     for j in range(opt.update_every):
                 if total_steps >= update_after:
-                    model.train(replay_buffer, human_replay_buffer, 1, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
-                    model.train(replay_buffer, human_replay_buffer, 0, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
+                    #discriminator
+                    model.train(replay_buffer, human_replay_buffer, 1)
+                    model.train(replay_buffer, human_replay_buffer, 1)
+                    #Q
+                    model.train(replay_buffer, human_replay_buffer, 2)
+                    model.train(replay_buffer, human_replay_buffer, 2)
+                    #actor
+                    model.train(replay_buffer, human_replay_buffer, 0)
 
 
                 '''record & log'''
