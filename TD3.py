@@ -146,35 +146,17 @@ class TD3_Agent(object):
             action = action.cpu().numpy()[0]
         return action
 
-    def train(self, replay_buffer, human_replay_buffer, human_flag, episode_reward_1, human_replay_buffer_size,
-              human_reward):
-        self.delay_counter += 1
-        self.count += 1
-        with torch.no_grad():
-            if human_flag and human_replay_buffer_size > self.batch_size:
-                s, a, r, s_prime, dw_mask = human_replay_buffer.sample(self.batch_size)
-            else:
+    def train(self, replay_buffer):
+        if replay_buffer.size >= self.batch_size*4:
+            self.delay_counter += 1
+            self.count += 1
+            with torch.no_grad():
                 s, a, r, s_prime, dw_mask = replay_buffer.sample(self.batch_size)
 
-            noise = (torch.randn_like(a) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
-            smoothed_target_a = (
-                    self.actor_target(s_prime) + noise  # Noisy on target action
-            ).clamp(-self.max_action, self.max_action)
-
-        if human_flag and human_replay_buffer_size > self.batch_size:
-            action_agent = self.actor(s).detach()
-
-            #this a is human a, because it save in human buffer
-            human_Q1, human_Q2 = self.q_critic(s, a)
-
-            # Compute the target Q value
-            target_Q1, target_Q2 = self.q_critic(s, action_agent)
-            q_loss = -torch.mean(1.0 * (human_Q1 - target_Q1) + 1.0 * (human_Q2 - target_Q2))
-            q_loss = torch.clip(q_loss, -5, 5)
-            self.writer.add_scalar('loss human', q_loss, self.count)
-            self.writer.add_scalar('human-agent', torch.mean((human_Q1 - target_Q1)), self.count)
-
-        else:
+                noise = (torch.randn_like(a) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
+                smoothed_target_a = (
+                        self.actor_target(s_prime) + noise  # Noisy on target action
+                ).clamp(-self.max_action, self.max_action)
             # Compute the target Q value
             target_Q1, target_Q2 = self.q_critic_target(s_prime, smoothed_target_a)
             target_Q = torch.min(target_Q1, target_Q2)
@@ -191,33 +173,33 @@ class TD3_Agent(object):
 
             self.writer.add_scalar('loss q', q_loss, self.count)
 
-        # Optimize the q_critic
-        self.q_critic_optimizer.zero_grad()
-        q_loss.backward()
-        # total_norm_q = torch.nn.utils.clip_grad_norm_(self.q_critic.parameters(), self.max_norm)
-        # self.writer.add_scalar('grad norm Q', total_norm_q, self.count)
-        self.q_critic_optimizer.step()
+            # Optimize the q_critic
+            self.q_critic_optimizer.zero_grad()
+            q_loss.backward()
+            # total_norm_q = torch.nn.utils.clip_grad_norm_(self.q_critic.parameters(), self.max_norm)
+            # self.writer.add_scalar('grad norm Q', total_norm_q, self.count)
+            self.q_critic_optimizer.step()
 
 
-        if self.delay_counter == self.delay_freq:
-            # Update Actor
-            a_loss = -self.q_critic.Q1(s, self.actor(s)).mean()
-            self.writer.add_scalar('loss actor', a_loss, self.count)
+            if self.delay_counter == self.delay_freq:
+                # Update Actor
+                a_loss = -self.q_critic.Q1(s, self.actor(s)).mean()
+                self.writer.add_scalar('loss actor', a_loss, self.count)
 
-            self.actor_optimizer.zero_grad()
-            a_loss.backward()
-            # total_norm_actor = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_norm)
-            # self.writer.add_scalar('grad norm actor', total_norm_actor, self.count)
-            self.actor_optimizer.step()
+                self.actor_optimizer.zero_grad()
+                a_loss.backward()
+                # total_norm_actor = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_norm)
+                # self.writer.add_scalar('grad norm actor', total_norm_actor, self.count)
+                self.actor_optimizer.step()
 
-            # Update the frozen target models
-            for param, target_param in zip(self.q_critic.parameters(), self.q_critic_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                # Update the frozen target models
+                for param, target_param in zip(self.q_critic.parameters(), self.q_critic_target.parameters()):
+                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
-            for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
+                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
-            self.delay_counter = -1
+                self.delay_counter = -1
 
     def computer_q_diff(self, s, a):
         with torch.no_grad():
@@ -272,5 +254,17 @@ class ReplayBuffer(object):
             torch.FloatTensor(self.reward[ind]).to(self.device),
             torch.FloatTensor(self.next_state[ind]).to(self.device),
             torch.FloatTensor(self.dead[ind]).to(self.device),
+
+        )
+
+    def sample_export(self, batch_size):
+        ind = np.random.randint(0, self.size, size=batch_size)
+
+        return (
+            torch.FloatTensor(self.state[ind]).to(self.device),
+            torch.FloatTensor(self.action[ind]).to(self.device),
+            # torch.FloatTensor(self.reward[ind]).to(self.device),
+            # torch.FloatTensor(self.next_state[ind]).to(self.device),
+            # torch.FloatTensor(self.dead[ind]).to(self.device),
 
         )

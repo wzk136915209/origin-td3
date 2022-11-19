@@ -6,7 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 import os, shutil
 from datetime import datetime
 import argparse
-from utils import str2bool,Reward_adapter,evaluate_policy, evaluate_policy_test
+from utils import str2bool,Reward_adapter,evaluate_policy, evaluate_policy_test, load_json_data
 import psutil
 import mujoco_py
 # import tensorflow_probability as tfb
@@ -14,6 +14,7 @@ import mujoco_py
 import random
 from maxque import MaxQueue
 import platform
+from  gail import  GAIL
 
 
 
@@ -89,12 +90,11 @@ def main():
     if opt.write:
         # save path
         if platform.system().lower() == 'windows':
-            logdir = './data/' + EnvName[EnvIdex] + "/random" + str(random_seed) +\
-                     '/human-q-15/' + str(human_reward) + "/no-clip-norm-action-sample-detach"
+            rootpath = "."
         elif platform.system().lower() == 'linux':
-            rootpaht = "/mnt/HDD8T2/wzkfile/new/origin-td3"
-            logdir = rootpaht + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
-                     '/human-q-15/' + str(human_reward)  + "/no-clip-norm-action-sample-detach"
+            rootpath = "/mnt/HDD8T2/wzkfile/new/origin-td3"
+        logdir = rootpath + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
+                 '/GAIL/' +"/td3/origin"
         print(logdir)
         writer = SummaryWriter(log_dir=logdir)
 
@@ -128,12 +128,15 @@ def main():
 
     # human in the loop
     human_replay_buffer = ReplayBuffer(state_dim, action_dim, max_size=int(4e5))
+    filname = './save_data/export-walker.json'
+    load_json_data(filname, human_replay_buffer)
+    gail = GAIL(model, state_dim, action_dim, writer)
     human = TD3_Agent(**kwargs)
-    human.load(BrifEnvName[EnvIdex],'reward=4000')
-    h_s = eval_env.reset()
-    h_a = human.select_action(h_s)
-    human_no_action = 0
-    human.human_reward = human_reward
+    # human.load(BrifEnvName[EnvIdex],'reward=4000')
+    # h_s = eval_env.reset()
+    # h_a = human.select_action(h_s)
+    # human_no_action = 0
+    # human.human_reward = human_reward
 
     train_flag = True
     for i in range(10):
@@ -164,84 +167,52 @@ def main():
                 steps += 1  #steps in one episode
 
                 #random sample action, it will improve informace, but don't repeate again
-                if total_steps < start_steps:
-                    a = env.action_space.sample()
+                if total_steps < 0:
+                    pass
+
                 else:
                     # a = (model.select_action(s) + np.random.normal(0, max_action * expl_noise, size=action_dim)
                     #      ).clip(-max_action, max_action)  # explore: deterministic actions + noise
-                    model.std = expl_noise
+                    model.std = max_action*expl_noise
                     a = model.slect_action_normal(s)
-
-                    # human in the loop q diff
-                    q_diff = model.computer_q_diff(s, a)
-                    maxqvalue = model.que.max_value()
-                    model.que.push_back(q_diff)
-                    human.human_flag = 0
-                    if q_diff > maxqvalue and all_episode_reward[-1] < human.human_reward:
-                        h_a = human.select_action(s)
-                        if np.mean(abs(h_a - a)) > 0.2:
-                            #a = h_a
-                            human.human_flag = 1
-                        else:
-                            human_no_action += 1
-                            human.human_flag = 0
-                            h_a = a
-                            writer.add_scalar('human-no-action', human_no_action, total_steps)
-
-
-                    h_a = h_a.clip(-max_action,max_action)
                     a = a.clip(-max_action, max_action)
-                    writer.add_scalar('q-diff', q_diff, total_steps)
-                    if human.human_flag:
-                        action = h_a
+                    action = a
+
+                    s_prime, r, done, info = env.step(action)
+                    r = Reward_adapter(r, EnvIdex)
+                    # writer.add_scalar('origin reward', r, total_steps)
+
+                    '''Avoid impacts caused by reaching max episode steps'''
+                    if (done and steps != max_e_steps):
+                        dw = True  # dw: dead and win
                     else:
-                        action = a
+                        dw = False
+                    gail.learn(human_replay_buffer, replay_buffer, s, a, s_prime, dw)
 
-                s_prime, r, done, info = env.step(action)
-                r = Reward_adapter(r, EnvIdex)
-                # writer.add_scalar('origin reward', r, total_steps)
-
-                '''Avoid impacts caused by reaching max episode steps'''
-                if (done and steps != max_e_steps):
-                    dw = True  # dw: dead and win
-                else:
-                    dw = False
-
-                if human.human_flag:
-                    human_replay_buffer.add(s, h_a, r, s_prime, dw)
-                    replay_buffer.add(s, h_a, r, s_prime, dw)
-                else:
-                    replay_buffer.add(s, a, r, s_prime, dw)
-                s = s_prime
-                ep_r += r
-
-                if done and total_steps > start_steps:
-                    episode += 1
-                    all_episode_reward.append(all_episode_reward[-1] * 0.9 + ep_r * 0.1)
-                    writer.add_scalar('reward train', all_episode_reward[-1], episode)
-                    writer.add_scalar('buffer human', human_replay_buffer.size, episode)
-                    writer.add_scalar('buffer agent', replay_buffer.size, episode)
-                    # print('EnvName:', BrifEnvName[EnvIdex], 'episode: {}'.format(episode),
-                    #       'score:', all_episode_reward[-1])
-
-                '''train if its time'''
-                # train 50 times every 50 steps rather than 1 training per step. Better!
-                # if total_steps >= update_after and total_steps % opt.update_every == 0:
-                #     for j in range(opt.update_every):
-                if total_steps >= update_after:
-                    model.train(replay_buffer, human_replay_buffer, 1, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
-                    model.train(replay_buffer, human_replay_buffer, 0, all_episode_reward[-1], human_replay_buffer.size, human.human_reward)
+                    s = s_prime
+                    ep_r += r
 
 
-                '''record & log'''
-                if total_steps % opt.eval_interval == 0:
-                    expl_noise *= opt.noise_decay
-                    writer.add_scalar('expl_noise', expl_noise, global_step=total_steps)
-                    score = evaluate_policy(eval_env, model, False)
-                    if opt.write:
-                        writer.add_scalar('reward eval', score, global_step=total_steps)
 
-                    print('EnvName:', BrifEnvName[EnvIdex], 'steps: {}k'.format(int(total_steps/1000)), 'score:', score)
+                    if done and total_steps > start_steps:
+                        episode += 1
+                        all_episode_reward.append(all_episode_reward[-1] * 0.9 + ep_r * 0.1)
+                        writer.add_scalar('reward train', all_episode_reward[-1], episode)
+                        writer.add_scalar('buffer human', human_replay_buffer.size, episode)
+                        writer.add_scalar('buffer agent', replay_buffer.size, episode)
+                        # print('EnvName:', BrifEnvName[EnvIdex], 'episode: {}'.format(episode),
+                        #       'score:', all_episode_reward[-1])
+
+                    '''record & log'''
+                    if total_steps % opt.eval_interval == 0:
+                        expl_noise *= opt.noise_decay
+                        writer.add_scalar('expl_noise', expl_noise, global_step=total_steps)
+                        score = evaluate_policy(eval_env, model, False)
+                        if opt.write:
+                            writer.add_scalar('reward eval', score, global_step=total_steps)
+
+                        print('EnvName:', BrifEnvName[EnvIdex], 'steps: {}k'.format(int(total_steps/1000)), 'score:', score)
+
                 total_steps += 1
 
                 '''save model'''
