@@ -15,7 +15,7 @@ import random
 from maxque import MaxQueue
 import platform
 from  gail import  GAIL
-
+import time
 
 
 '''Hyperparameter Setting'''
@@ -94,7 +94,7 @@ def main():
         elif platform.system().lower() == 'linux':
             rootpath = "/mnt/HDD8T2/wzkfile/new/origin-td3"
         logdir = rootpath + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
-                 '/GAIL/' +"/td3/origin"
+                 '/GAIL/' +"/td3/origin2"
         print(logdir)
         writer = SummaryWriter(log_dir=logdir)
 
@@ -177,7 +177,7 @@ def main():
                     a = model.slect_action_normal(s)
                     a = a.clip(-max_action, max_action)
                     action = a
-
+                    time.sleep(.002)
                     s_prime, r, done, info = env.step(action)
                     r = Reward_adapter(r, EnvIdex)
                     # writer.add_scalar('origin reward', r, total_steps)

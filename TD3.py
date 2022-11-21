@@ -147,7 +147,7 @@ class TD3_Agent(object):
         return action
 
     def train(self, replay_buffer):
-        if replay_buffer.size >= self.batch_size*4:
+        if replay_buffer.size >= self.batch_size:
             self.delay_counter += 1
             self.count += 1
             with torch.no_grad():
