@@ -46,9 +46,13 @@ class GAIL:
 
         expert_prob = self.discriminator(expert_states, expert_actions)
         agent_prob = self.discriminator(agent_states, agent_actions)
+        expert_prob = expert_prob.clip(1e-6, 1.0)
+        agent_prob = agent_prob.clip(1e-6, 1.0)
+
         discriminator_loss = nn.BCELoss()(
-            agent_prob, torch.ones_like(agent_prob)) + nn.BCELoss()(
-                expert_prob, torch.zeros_like(expert_prob))
+            agent_prob, torch.ones_like(agent_prob))\
+                           + nn.BCELoss()(
+            expert_prob, torch.zeros_like(expert_prob))
 
         self.writer.add_scalar('loss discriminator', discriminator_loss, self.count)
         self.writer.add_scalar('prob agent', agent_prob.mean(), self.count)

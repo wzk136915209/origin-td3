@@ -94,7 +94,7 @@ def main():
         elif platform.system().lower() == 'linux':
             rootpath = "/mnt/HDD8T2/wzkfile/new/origin-td3"
         logdir = rootpath + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
-                 '/GAIL/' +"/td3/origin2"
+                 '/GAIL/' +"/td3/origin5"
         print(logdir)
         writer = SummaryWriter(log_dir=logdir)
 
@@ -171,14 +171,16 @@ def main():
                     pass
 
                 else:
-                    # a = (model.select_action(s) + np.random.normal(0, max_action * expl_noise, size=action_dim)
+                    #a = (model.select_action(s) + np.random.normal(0, max_action * expl_noise, size=action_dim)
                     #      ).clip(-max_action, max_action)  # explore: deterministic actions + noise
-                    model.std = max_action*expl_noise
+                    model.std = expl_noise
+
                     a = model.slect_action_normal(s)
+
                     a = a.clip(-max_action, max_action)
-                    action = a
-                    time.sleep(.002)
-                    s_prime, r, done, info = env.step(action)
+                    #print(a)
+
+                    s_prime, r, done, info = env.step(a)
                     r = Reward_adapter(r, EnvIdex)
                     # writer.add_scalar('origin reward', r, total_steps)
 
