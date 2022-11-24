@@ -179,6 +179,8 @@ class TD3_Agent(object):
             agent_action = self.actor(export_s)
             agent_prob = self.q_critic.discriminator(export_s, agent_action)
             export_prob = self.q_critic.discriminator(export_s, export_a)
+            agent_prob = agent_prob.clip(1e-6, 1.0)
+            export_prob = export_prob.clip(1e-6, 1.0)
             dis_loss = self.disciminator_criteon(agent_prob, torch.zeros_like(agent_prob))\
                       +self.disciminator_criteon(export_prob, torch.ones_like(export_prob))
 
