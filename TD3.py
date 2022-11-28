@@ -84,7 +84,7 @@ class Q_Critic(nn.Module):
     def discriminator(self, s, a):
         sa = torch.cat([s, a], dim=1)
         sh1 = self.shared_q1(sa)
-        out = F.relu(self.d1(sh1))
+        out = self.d1(sh1)
         out = F.sigmoid(out)
         return out
 
