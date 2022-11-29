@@ -93,7 +93,7 @@ def main():
         elif platform.system().lower() == 'linux':
             rootpath = "/mnt/HDD8T2/wzkfile/new/origin-td3"
         logdir = rootpath + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
-                 '/mygan' + "/gan Q(s,a),Q(s,pi(s))-net-only-dis/clip-prob"
+                 '/mygan' + "/gan-only-buffer-data/clip-prob"
 
         print(logdir)
         writer = SummaryWriter(log_dir=logdir)
@@ -232,8 +232,8 @@ def main():
                 #     for j in range(opt.update_every):
                 if total_steps >= update_after:
                     #discriminator
-                    model.train(replay_buffer, human_replay_buffer, 1)
-                    model.train(replay_buffer, human_replay_buffer, 1)
+                    # model.train(replay_buffer, human_replay_buffer, 1)
+                    # model.train(replay_buffer, human_replay_buffer, 1)
                     #Q
                     model.train(replay_buffer, human_replay_buffer, 2)
                     model.train(replay_buffer, human_replay_buffer, 2)

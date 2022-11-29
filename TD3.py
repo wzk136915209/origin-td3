@@ -237,8 +237,8 @@ class TD3_Agent(object):
                 # export_prob = self.q_critic.discriminator(export_s, export_a).mean()
                 # agent_prob = self.q_critic.discriminator(export_s, agent_action).mean()
                 # prob = agent_prob/export_prob
-                # a_loss = -prob*self.q_critic.Q1(export_s, agent_action).mean()
-                # self.writer.add_scalar('loss actor export', a_loss, self.count)
+                a_loss = -self.q_critic.Q1(export_s, agent_action).mean()
+                self.writer.add_scalar('loss actor export', a_loss, self.count)
                 # self.writer.add_scalar('prob agent export', prob, self.count)
                 # self.writer.add_scalar('prob  export', export_prob, self.count)
                 # self.writer.add_scalar('prob  agent', agent_prob, self.count)
@@ -246,7 +246,7 @@ class TD3_Agent(object):
                 # a_loss = F.mse_loss(export_a, agent_action).mean()
                 # self.writer.add_scalar('loss actor export', a_loss, self.count)
 
-                a_loss = -self.q_critic.Q1(agent_s, self.actor(agent_s)).mean()
+                # a_loss = -self.q_critic.Q1(agent_s, self.actor(agent_s)).mean()
 
                 self.actor_optimizer.zero_grad()
                 a_loss.backward()
