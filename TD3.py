@@ -243,8 +243,10 @@ class TD3_Agent(object):
                 # self.writer.add_scalar('prob  export', export_prob, self.count)
                 # self.writer.add_scalar('prob  agent', agent_prob, self.count)
 
-                a_loss = F.mse_loss(export_a, agent_action).mean()
-                self.writer.add_scalar('loss actor export', a_loss, self.count)
+                # a_loss = F.mse_loss(export_a, agent_action).mean()
+                # self.writer.add_scalar('loss actor export', a_loss, self.count)
+
+                a_loss = -self.q_critic.Q1(agent_s, self.actor(agent_s)).mean()
 
                 self.actor_optimizer.zero_grad()
                 a_loss.backward()
