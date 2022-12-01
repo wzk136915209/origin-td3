@@ -93,7 +93,7 @@ def main():
         elif platform.system().lower() == 'linux':
             rootpath = "/mnt/HDD8T2/wzkfile/new/origin-td3"
         logdir = rootpath + '/data/' + EnvName[EnvIdex] + "/random" + str(random_seed) + \
-                 '/mygan' + "/gan-dis-data-actor-no-prob2/clip-prob"
+                 '/mygan' + "/gan-dis-data-actor/clip-prob"
 
         print(logdir)
         writer = SummaryWriter(log_dir=logdir)
